@@ -10,6 +10,7 @@ namespace py = pybind11;
 #include <tempo/mps/common.hpp>
 #include <tempo/mpo/arith.hpp>
 #include <tempo/core/mputil.hpp>
+#include <tempo/core/ptrace.hpp>
 
 using namespace tempo;
 
@@ -40,11 +41,15 @@ PYBIND11_MODULE(tempo, m) {
     \
     py::class_<MPS<type>>(sub_##name, "MPS") \
         .def(py::init<MPS<type>::TopTensor, std::vector<MPS<type>::MiddleTensor>, MPS<type>::BottomTensor>(), py::arg("top_tensor"), py::arg("middle_tensors"), py::arg("bottom_tensor"), "Initializes an MPS with the given top tensor, middle tensors, and bottom tensor") \
-        .def("transpose", &MPS<type>::transpose, "Transposes the MPS"); \
+        .def("transpose", &MPS<type>::transpose, "Transposes the MPS") \
+        .def("bond_dimension", &MPS<type>::bond_dimension, "Gets the bond dimension") \
+        .def("compress_factor", &MPS<type>::compress_factor, "gets the compression factor"); \
     \
     py::class_<MPO<type>>(sub_##name, "MPO") \
         .def(py::init<MPO<type>::TopTensor, std::vector<MPO<type>::MiddleTensor>, MPO<type>::BottomTensor>(), py::arg("top_tensor"), py::arg("middle_tensors"), py::arg("bottom_tensor"), "Initializes an MPO with the given top tensor, middle tensors, and bottom tensor") \
-        .def("transpose", &MPO<type>::transpose, "Transposes the MPO"); \
+        .def("transpose", &MPO<type>::transpose, "Transposes the MPO") \
+        .def("bond_dimension", &MPO<type>::bond_dimension, "Gets the bond dimension") \
+        .def("compress_factor", &MPO<type>::compress_factor, "gets the compression factor"); \
     \
     sub_##name.def("create_ghz_state_mps", &create_ghz_state_mps<type>, py::arg("n"), \
         "Creates an MPS GHZ object with parameter n"); \
@@ -52,8 +57,12 @@ PYBIND11_MODULE(tempo, m) {
     sub_##name.def("create_adder_mpo", &create_adder_mpo<type>, py::arg("n"), py::arg("a"), \
         "Creates a MPO adder object with parameters n and a"); \
     \
-    sub_##name.def("contract_mps_mpos_mps_rowbyrow", &contract_mps_mpos_mps_rowbyrow<type>, py::arg("mps"), py::arg("mpos"), py::arg("mps"), \
-        "Contracts an MPS with a list of MPOs and another MPS row by row, returning the result as a scalar");
+    sub_##name.def("contract_mps_mpos_mps_rowbyrow", &contract_mps_mpos_mps_rowbyrow<type>, py::arg("mps_a"), py::arg("mpos"), py::arg("mps_b"), \
+        "Contracts an MPS with a list of MPOs and another MPS row by row, returning the result as a scalar"); \
+    sub_##name.def("join_mps_mpos", &join_mps_mpos<type>, py::arg("mps"), py::arg("mpos"), \
+        "Joins (contracts) a MPS and several MPOs into the resulting joined MPS"); \
+    sub_##name.def("mps_argmax_ptraced", &mps_argmax_ptraced<type>, py::arg("mps"), py::arg("normalize") = false, \
+        "Finds the indices of the max element in a MPS using asymptotic partial-trace techniques");
 
     _DEFINE_FOR_PRECISION(f32, "Single precision tensors and operations", float);
     _DEFINE_FOR_PRECISION(f64, "Double precision tensors and operations", double);

@@ -30,7 +30,7 @@ namespace tempo {
         auto bottom_tensor = MPO<S>::BottomTensor::zeroed(2, 2, 2);
         for(i32 c = 0; c < 2; c++) {
             for(i32 x = 0; x < 2; x++) {
-                bottom_tensor.at(x, c, _ADD_RES_BIT(c, x, _A_BIT_I(a, n-1))) = 1.0;
+                bottom_tensor.at(x, c, _ADD_RES_BIT(c, x, _A_BIT_I(a, (n-1)))) = 1.0;
             }
         }
 

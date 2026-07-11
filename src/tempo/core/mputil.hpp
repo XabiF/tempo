@@ -2,6 +2,8 @@
 #pragma once
 #include <tempo/core/mps.hpp>
 #include <tempo/core/mpo.hpp>
+#include <utility>
+#include <vector>
 
 namespace tempo {
 
@@ -62,6 +64,40 @@ namespace tempo {
 
         ETensor0 final_value = t_row_cur.contract(mps_b_t.top_tensor.raw, Eigen::array<Eigen::IndexPair<i32>, 2>{ Eigen::IndexPair<i32>(0, 0), Eigen::IndexPair<i32>(1, 1) });
         return final_value(0);
+    }
+
+    template<typename S>
+    MPS<S> join_mps_mpos(const MPS<S> &mps, const std::vector<MPO<S>> &mpos) {
+        using ETensor2 = ETensor<S, 2>;
+        using ETensor3 = ETensor<S, 3>;
+        using ETensor5 = ETensor<S, 5>;
+
+        ETensor2 final_mps_bottom_tensor = mps.bottom_tensor.raw;
+        ETensor2 final_mps_top_tensor = mps.top_tensor.raw;
+        std::vector<typename MPS<S>::MiddleTensor> final_mps_middle_tensors = mps.middle_tensors;
+
+        for(const auto &mpo: mpos) {
+            // Bottom tensor
+            ETensor3 tmp_bottom_tsr = final_mps_bottom_tensor.contract(mpo.bottom_tensor.raw, Eigen::array<Eigen::IndexPair<i32>, 1>{ Eigen::IndexPair<i32>(1, 0) });
+            ETensor2 cur_bottom_contr_tsr = tmp_bottom_tsr.reshape(std::array<indx, 2> { tmp_bottom_tsr.dimension(0)*tmp_bottom_tsr.dimension(1), tmp_bottom_tsr.dimension(2) });
+            final_mps_bottom_tensor = std::move(cur_bottom_contr_tsr);
+
+            // Middle tensors
+            for(int i = 0; i < mps.middle_tensors.size(); i++) {
+                ETensor5 tmp_mid_i_tsr = final_mps_middle_tensors.at(i).raw.contract(mpo.middle_tensors.at(i).raw, Eigen::array<Eigen::IndexPair<i32>, 1>{ Eigen::IndexPair<i32>(1, 0) }).eval();
+                ETensor5 tmp_mid_i_tsr_2 = tmp_mid_i_tsr.shuffle(std::array<indx, 5> { 0, 2, 3, 1, 4 });
+                ETensor3 cur_mid_i_contr_tsr = tmp_mid_i_tsr_2.reshape(std::array<indx, 3> { tmp_mid_i_tsr_2.dimension(0)*tmp_mid_i_tsr_2.dimension(1), tmp_mid_i_tsr_2.dimension(2), tmp_mid_i_tsr_2.dimension(3)*tmp_mid_i_tsr_2.dimension(4) });
+                final_mps_middle_tensors.at(i).raw = std::move(cur_mid_i_contr_tsr);
+            }
+
+            // Top tensor
+            ETensor3 tmp_top_tsr = final_mps_top_tensor.contract(mpo.top_tensor.raw, Eigen::array<Eigen::IndexPair<i32>, 1>{ Eigen::IndexPair<i32>(0, 0) });
+            ETensor3 tmp_top_tsr_2 = tmp_top_tsr.shuffle(std::array<indx, 3> { 1, 0, 2 });
+            ETensor2 cur_top_contr_tsr = tmp_top_tsr_2.reshape(std::array<indx, 2> { tmp_top_tsr_2.dimension(0), tmp_top_tsr_2.dimension(1)*tmp_top_tsr_2.dimension(2) });
+            final_mps_top_tensor = std::move(cur_top_contr_tsr);
+        }
+
+        return MPS<S>(typename MPS<S>::TopTensor(std::move(final_mps_top_tensor)), std::move(final_mps_middle_tensors), typename MPS<S>::BottomTensor(std::move(final_mps_bottom_tensor)));
     }
 
 }

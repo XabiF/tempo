@@ -30,6 +30,23 @@ namespace tempo {
             auto t_bottom_tensor = BottomTensor(this->bottom_tensor.raw.shuffle(std::array<indx, 3> { 2, 1, 0 }));
             return MPO<S>(std::move(t_top_tensor), std::move(t_middle_tensors), std::move(t_bottom_tensor));
         }
+
+        indx bond_dimension() const {
+            auto largest_dim = this->top_tensor.raw.dimension(2);
+            for(const auto &mid_tensor: this->middle_tensors) {
+                largest_dim = std::max(largest_dim, mid_tensor.raw.dimension(3));
+            }
+            return largest_dim;
+        }
+
+        S compress_factor() const {
+            const auto max_edge_phys_dim = std::max(this->top_tensor.raw.dimension(1), this->bottom_tensor.raw.dimension(2));
+            auto max_theo_bond_dim = max_edge_phys_dim;
+            for(const auto &mid_tensor: this->middle_tensors) {
+                max_theo_bond_dim *= mid_tensor.raw.dimension(2);
+            }
+            return log(this->bond_dimension()) / log(max_theo_bond_dim);
+        }
     };
 
 }
